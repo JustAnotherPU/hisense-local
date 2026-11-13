@@ -2,10 +2,10 @@
 
 ## 0.1.5 (unreleased)
 
-- The time-left byte now settles when its copies count down together, which is how the washer
-  reports it. A countdown only counts while a state candidate reads "running".
-- If several state bytes read "running" through the whole cycle, the one naming the most states is
-  picked when the time left reaches one minute.
+- The time-left byte now settles when its copies count down together, which is how this washer
+  reports it. A drop only counts while a state candidate reads "running".
+- When more than one state byte reads "running" for the whole cycle, the add-on keeps the one that
+  names the most states once a minute is left.
 
 ## 0.1.4 (unreleased)
 
