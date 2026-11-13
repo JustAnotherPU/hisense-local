@@ -74,3 +74,7 @@ the command format and end local control, so keep the washer off the internet.
   washer was recorded with an earlier tool and imported. A first real capture may hit something the
   tests did not cover. When the add-on sees a cloud frame it does not expect, it drops the link.
   See the [capture guide](capture-guide.md).
+- The washer switches itself off after some idle minutes, and only its power button brings it
+  back. Home Assistant cannot start a wash while it is off.
+- Once a cycle has finished, the washer acknowledges new program and start commands but ignores
+  them. Open the door or switch it off and on before the next remote start.
