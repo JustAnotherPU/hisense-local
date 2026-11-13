@@ -52,9 +52,12 @@ The calibration copes with two quirks seen on the test machine:
 - The washer keeps or clamps some values: temperature 1 is accepted but changes nothing, and 90 °C
   on a program that stops at 60 °C reads back as a lower level. Those steps do not break the match.
 
-The time-left byte is provisional. Before any cycle has run, the program duration appears in
-several places and the calibration picks the first one, which may be the total time rather than the
-countdown. Run a calibration with `calibrate_cycle` on, drum empty, to settle it.
+The time-left byte starts out provisional. Before any cycle has run, the program duration appears
+in several places and the calibration picks the first one, which may be the total time rather than
+the countdown. During the next wash the add-on keeps the copy that drops by one minute while the
+others hold, twice in a row, and saves it. The State sensor is settled the same way, from the bytes
+the test cycle left as candidates. If two candidates still read "running" at the end of a wash,
+the State sensor stays off rather than guess.
 
 ## Firmware
 

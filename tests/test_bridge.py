@@ -169,3 +169,21 @@ class BridgeTest(unittest.IsolatedAsyncioTestCase):
 
 if __name__ == "__main__":
     unittest.main()
+
+
+class LearnTest(unittest.IsolatedAsyncioTestCase):
+    async def asyncSetUp(self):
+        self.client = StubClient()
+        self.gw = StubGateway(fakes.FakeSession().session())
+
+    async def test_learned_fields_are_saved_and_shown(self):
+        from hisense_local import calibrate
+        saved = []
+        learner = calibrate.Learner({"minutes_left": [2, 3]})
+        bridge = bridgelib.Bridge(self.client, asyncio.get_running_loop(), self.gw, offsets={"minutes_left": 2},
+                                  learner=learner, save_offsets=lambda found, left: saved.append((dict(found), left)))
+        for left in (15, 14, 13):
+            bridge.on_status([67, 64, 15, left])
+        self.assertEqual(bridge.offsets["minutes_left"], 3)
+        self.assertEqual(saved, [({"minutes_left": 3}, {})])
+        self.assertEqual(self.client.last("hisense_local/state")["minutes_left"], 13)

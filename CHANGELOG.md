@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.4 (unreleased)
+
+- Calibration keeps the readings it could not settle as candidates. During the next wash the add-on
+  picks the time-left copy that counts down and the state byte that reads "running", saves them,
+  and adds the State sensor.
+
 ## 0.1.3 (unreleased)
 
 - A first capture becomes the active session by itself, but only when its login is complete.

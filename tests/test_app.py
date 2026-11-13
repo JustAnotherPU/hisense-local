@@ -39,3 +39,25 @@ class CalibrateOnceTest(unittest.TestCase):
         self.start(False)
         self.start(True)
         self.assertEqual(self.calls, ["calibrate", "serve", "serve", "calibrate"])
+
+
+class OpenLearnerTest(unittest.TestCase):
+    def test_rebuilds_candidates_only_from_the_matching_report(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "status_offsets.json")
+            with open(path, "w") as fh:
+                json.dump({"offsets": {"minutes_left": 2}, "at": 100.0}, fh)
+            report = {"started": 100.0, "steps": [], "timeline": [
+                {"values": [32, 127]}, {"label": "Actions=2", "result": "ok"}, {"values": [67, 64]},
+                {"label": "Actions=1", "result": "ok"}, {"values": [0, 74]}]}
+            with open(os.path.join(tmp, "calibration.json"), "w") as fh:
+                json.dump(report, fh)
+            learner = app.open_learner(path, tmp, {"minutes_left": 2})
+            self.assertEqual(learner.remaining()["machine_status"][0]["at"], 0)
+            report["started"] = 99.0  # a report from another run says nothing about these offsets
+            with open(os.path.join(tmp, "calibration.json"), "w") as fh:
+                json.dump(report, fh)
+            self.assertIsNone(app.open_learner(path, tmp, {"minutes_left": 2}))
+            with open(os.path.join(tmp, "calibration.json"), "w") as fh:
+                fh.write("{broken")
+            self.assertIsNone(app.open_learner(path, tmp, {}))

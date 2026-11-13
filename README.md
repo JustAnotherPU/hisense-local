@@ -94,8 +94,10 @@ to the values it read at the start. If it could not find a value's position, it 
 child lock off instead. Turn `calibrate` off and restart.
 
 With `calibrate_cycle` it also runs start, pause, resume and stop on the quick program and records
-every status. That is what locates the state, phase and door readings and settles the time-left
-reading. See [limits](docs/limits.md#status-readings-need-a-calibration).
+every status, which narrows down the state reading. The short test cycle is too brief for the
+minute counter to move, so the time-left and state readings are settled during the first real wash
+afterwards: the add-on watches which copy counts down, saves the result and adds the State sensor.
+See [limits](docs/limits.md#status-readings-need-a-calibration).
 
 To decode every status frame found as hex in a capture log, offline:
 

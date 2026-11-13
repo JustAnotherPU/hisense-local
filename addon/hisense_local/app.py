@@ -37,6 +37,30 @@ def load_offsets(path):
     return good
 
 
+def open_learner(path, share, offsets):
+    """A Learner for what calibration left open, or None. Never raises."""
+    from . import calibrate
+    try:
+        saved = load_json(path, {})
+        candidates = saved.get("candidates")
+        if candidates is None:
+            # written before candidates were kept: rebuild them from the matching report
+            report = load_json(os.path.join(share, "calibration.json"), {})
+            if report.get("started") != saved.get("at"):
+                return None
+            # shortcut: a field the rebuild settles outright is not adopted; recalibrate to get it
+            candidates = calibrate.derive(report.get("steps", []), report.get("timeline", []))[1]
+        clock = offsets.get("minutes_left")
+        learner = calibrate.Learner(candidates, clock=clock if type(clock) is int else None)
+    except Exception as exc:  # a bad file only means nothing to learn
+        log.warning("calibration candidates unreadable (%s): nothing to learn", type(exc).__name__)
+        return None
+    left = learner.remaining()
+    if left:
+        log.info("will settle during the next cycle: %s", ", ".join(sorted(left)))
+    return learner if left else None
+
+
 def quiet_tls_errors(loop, context):
     exc = context.get("exception")
     log.warning("%s (%s: %s)", context.get("message"), type(exc).__name__ if exc else "-", exc or "")
@@ -111,8 +135,16 @@ async def serve(args, opts, with_mqtt):
 async def run_async(args, opts):
     data, gw, server, capture = await serve(args, opts, with_mqtt=True)
     client, host, port = mqtt_client(opts)
-    offsets = load_offsets(os.path.join(args.data, "status_offsets.json"))
-    bridge = Bridge(client, asyncio.get_running_loop(), gw, offsets=offsets, per_entity=opts.get("discovery") == "per_entity", capture=capture)
+    path = os.path.join(args.data, "status_offsets.json")
+    offsets = load_offsets(path)
+    learner = open_learner(path, args.share, offsets)
+
+    def save_offsets(found, left):
+        sessionlib.write_private(path, {"offsets": found, "candidates": left, "at": time.time()})
+
+    bridge = Bridge(client, asyncio.get_running_loop(), gw, offsets=offsets,
+                    per_entity=opts.get("discovery") == "per_entity", capture=capture,
+                    learner=learner, save_offsets=save_offsets)
     gw.on_status, gw.on_link = bridge.on_status, bridge.on_link
     if capture is not None:
         capture.on_got = bridge.capture_got
@@ -162,7 +194,8 @@ async def calibrate_async(args, opts):
     out = os.path.join(args.share, "calibration.json")
     sessionlib.write_private(out, report)
     sessionlib.write_private(os.path.join(args.data, "status_offsets.json"),
-                             {"offsets": report["offsets"], "at": report["started"]})
+                             {"offsets": report["offsets"], "candidates": report["ambiguous"],
+                              "at": report["started"]})
     log.info("offsets found: %s; ambiguous: %s; report: %s",
              report["offsets"], report["ambiguous"], out)
     return 0

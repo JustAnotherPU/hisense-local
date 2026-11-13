@@ -124,10 +124,85 @@ def derive(steps, timeline=()):
             hits = [i for i in hits if len({v[i] for v in running if i < len(v)}) > 1] or hits
         settle("minutes_left", hits)
         if len(hits) > 1:
-            # no copy moved (no cycle, or one too short to tick): every copy holds the duration
-            # shortcut: may pick the total instead of the countdown; a longer calibrate_cycle settles it
+            # no copy moved (no cycle, or one too short to tick): every copy holds the duration.
+            # The Learner settles it during the next real cycle.
             found["minutes_left"] = hits[0]
+    settle("machine_status", state_candidates(timeline))
     return found, ambiguous
+
+
+def state_candidates(timeline):
+    """Bytes with one value at rest, another all through the cycle and a third after the stop.
+
+    Returns [{"at": offset, "map": {byte: "ready" | "running" | "stopped"}}].
+    """
+    marks = [k for k, e in enumerate(timeline) if e.get("result") == "ok"]
+    start = next((k for k in marks if timeline[k]["label"] == "Actions=2"), None)
+    stop = next((k for k in marks if timeline[k]["label"] == "Actions=1"), None)
+    if start is None or stop is None or stop < start:
+        return []
+    rows = lambda a, b: [e["values"] for e in timeline[a:b] if e.get("values")]
+    before, during, after = rows(0, start), rows(start, stop), rows(stop, len(timeline))
+    if not (before and during and after):
+        return []
+    rest, end = before[-1], after[-1]
+    size = min(len(v) for v in [rest, end] + during)
+    hits = []
+    for i in range(size):
+        run = {v[i] for v in during}
+        if len(run) == 1 and rest[i] not in run and end[i] not in run:
+            names = {str(end[i]): "stopped", str(rest[i]): "ready", str(run.pop()): "running"}
+            hits.append({"at": i, "map": names})
+    return hits
+
+
+class Learner:
+    """Settles what calibration left open, from status frames seen during a real cycle.
+
+    The time-left byte is the one copy that drops by one minute while the other copies
+    hold, twice. The state byte is the candidate that reads "running" at every such tick.
+    """
+
+    TICKS = 2
+
+    def __init__(self, candidates, clock=None):
+        self.minutes = [i for i in candidates.get("minutes_left", ()) if type(i) is int and i >= 0]
+        self.states = [s for s in candidates.get("machine_status", ())
+                       if isinstance(s, dict) and wire.valid_spec(s) and "running" in s["map"].values()]
+        self.clock = None if self.minutes else clock  # a time-left byte already settled
+        self.ticks, self.prev = {}, None
+
+    def remaining(self):
+        out = {}
+        if self.minutes:
+            out["minutes_left"] = list(self.minutes)
+        if self.states:
+            out["machine_status"] = list(self.states)
+        return out
+
+    def feed(self, values):
+        """Returns {field: spec} for anything settled by this status frame."""
+        prev, self.prev = self.prev, values
+        pool = [self.clock] if self.clock is not None else self.minutes
+        if not prev or not pool or not self.states and self.clock is not None:
+            return {}
+        if len(prev) != len(values) or max(pool) >= len(values):
+            return {}
+        down = [i for i in pool if values[i] == prev[i] - 1]
+        if len(down) != 1 or any(values[i] != prev[i] for i in pool if i != down[0]):
+            return {}
+        self.states = [s for s in self.states
+                       if s["at"] < len(values) and s["map"].get(str(values[s["at"]])) == "running"]
+        out = {}
+        if self.clock is None:
+            self.ticks[down[0]] = self.ticks.get(down[0], 0) + 1
+            if self.ticks[down[0]] < self.TICKS:
+                return {}
+            self.clock, self.minutes = down[0], []
+            out["minutes_left"] = down[0]
+        if len(self.states) == 1:
+            out["machine_status"] = self.states.pop()
+        return out
 
 
 async def run(gateway, latest, *, with_cycle=False, pause=1.0, cycle_wait=(20, 10, 10, 10)):

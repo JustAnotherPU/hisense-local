@@ -1,5 +1,5 @@
 name: Hisense Local
-version: "0.1.3"
+version: "0.1.4"
 slug: hisense_local
 description: Serves a Hisense washer at home and bridges it to MQTT
 arch:

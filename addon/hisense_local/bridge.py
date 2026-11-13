@@ -15,7 +15,7 @@ log = logging.getLogger("bridge")
 
 BASE = "hisense_local"
 DEVICE_ID = "hisense_local"
-VERSION = "0.1.3"
+VERSION = "0.1.4"
 # property and field names end up in MQTT topics and Home Assistant templates
 NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
@@ -32,7 +32,7 @@ def controls(labels):
 
 class Bridge:
     def __init__(self, client, loop, gateway, *, offsets=None, per_entity=False,
-                 mode="local", capture=None):
+                 mode="local", capture=None, learner=None, save_offsets=None):
         self.client = client
         self.loop = loop
         self.gateway = gateway
@@ -40,6 +40,7 @@ class Bridge:
         self.per_entity = per_entity
         self.mode = mode
         self.capture = capture
+        self.learner, self.save_offsets = learner, save_offsets
         self.values = None  # last decoded status
         self.acked = {}  # prop -> value, from acknowledged commands
         self.last_result = None
@@ -116,10 +117,13 @@ class Bridge:
         log.info("MQTT connected")
         client.subscribe(f"{BASE}/set/+", qos=0)
         client.subscribe(f"{BASE}/capture/next", qos=0)
-        for topic, payload in self.discovery():
-            client.publish(topic, json.dumps(payload), qos=1, retain=True)
+        self.publish_discovery()
         client.publish(f"{BASE}/alive", "online", qos=1, retain=True)
         self.loop.call_soon_threadsafe(self.publish_link)
+
+    def publish_discovery(self):
+        for topic, payload in self.discovery():
+            self.client.publish(topic, json.dumps(payload), qos=1, retain=True)
 
     def on_message(self, client, userdata, msg):
         if msg.retain:
@@ -158,6 +162,13 @@ class Bridge:
 
     def on_status(self, values):
         self.values = values
+        got = self.learner.feed(values) if self.learner else {}
+        if got:
+            log.info("learned from this cycle: %s", got)
+            self.offsets.update(got)
+            if self.save_offsets:
+                self.save_offsets(self.offsets, self.learner.remaining())
+            self.publish_discovery()  # a new sensor may appear
         self.publish_state()
 
     def on_link(self, ready):
