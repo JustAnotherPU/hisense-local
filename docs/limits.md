@@ -77,4 +77,5 @@ the command format and end local control, so keep the washer off the internet.
 - The washer switches itself off after some idle minutes, and only its power button brings it
   back. Home Assistant cannot start a wash while it is off.
 - Once a cycle has finished, the washer acknowledges new program and start commands but ignores
-  them. Open the door or switch it off and on before the next remote start.
+  them. Open the door or switch it off and on before the next remote start. Stop, pause and resume
+  do not clear the end screen, and Stop on the end screen switches the washer off.

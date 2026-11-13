@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.6 (unreleased)
+
+- The State sensor reads "done" on the end screen, where the washer keeps reporting its running
+  value with no time left, and "off" once a command goes unanswered. The next status frame clears
+  "off".
+
 ## 0.1.5 (unreleased)
 
 - The time-left byte now settles when its copies count down together, which is how this washer

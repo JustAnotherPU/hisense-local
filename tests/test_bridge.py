@@ -107,6 +107,19 @@ class BridgeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(state["DownLight"], "OFF")
         self.assertEqual(state["last_result"], "DownLight=1: refused err=5")
 
+    async def test_state_shows_done_and_off(self):
+        self.bridge.offsets = {"minutes_left": 3,
+                               "machine_status": {"at": 0, "map": {"64": "running", "127": "ready"}}}
+        self.bridge.on_status([64, 0, 0, 5])
+        self.assertEqual(self.client.last("hisense_local/state")["machine_status"], "running")
+        self.bridge.on_status([64, 0, 0, 0])
+        self.assertEqual(self.client.last("hisense_local/state")["machine_status"], "done")
+        self.gw.result = "no ack"
+        await self.deliver(msg("hisense_local/set/DownLight", "0"))
+        self.assertEqual(self.client.last("hisense_local/state")["machine_status"], "off")
+        self.bridge.on_status([127, 0, 0, 15])
+        self.assertEqual(self.client.last("hisense_local/state")["machine_status"], "ready")
+
     async def test_unrecorded_value_not_sent_to_washer(self):
         await self.deliver(msg("hisense_local/set/temperature", "1"))
         await self.deliver(msg("hisense_local/set/Remote_hold", "7"))

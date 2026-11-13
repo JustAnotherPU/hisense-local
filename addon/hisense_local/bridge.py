@@ -15,7 +15,7 @@ log = logging.getLogger("bridge")
 
 BASE = "hisense_local"
 DEVICE_ID = "hisense_local"
-VERSION = "0.1.5"
+VERSION = "0.1.6"
 # property and field names end up in MQTT topics and Home Assistant templates
 NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 
@@ -44,6 +44,7 @@ class Bridge:
         self.values = None  # last decoded status
         self.acked = {}  # prop -> value, from acknowledged commands
         self.last_result = None
+        self.asleep = False  # a command went unanswered: the washer switched itself off
         self.available = controls(gateway.session.labels if gateway.session else ())
         self.selects, self.switches, self.buttons = self._plan()
         self.offered = {f"{p}={v}" for p, (_, names) in self.selects.items() for v in names}
@@ -152,6 +153,8 @@ class Bridge:
         # only what discovery offers can be sent (temperature=1, dose levels... stay out)
         result = await self.gateway.send(label) if label in self.offered else "not offered"
         log.info("command %s -> %s", label, result)
+        if result in ("ok", "no ack"):
+            self.asleep = result == "no ack"
         if result == "ok":
             prop, _, value = label.partition("=")
             self.acked[prop] = int(value) if value.lstrip("-").isdigit() else value
@@ -161,7 +164,7 @@ class Bridge:
         return result
 
     def on_status(self, values):
-        self.values = values
+        self.values, self.asleep = values, False
         got = self.learner.feed(values) if self.learner else {}
         if got:
             log.info("learned from this cycle: %s", got)
@@ -199,6 +202,10 @@ class Bridge:
         for field, spec in self.offsets.items():
             if field not in out and self.values is not None:
                 out[field] = wire.field_value(self.values, spec)
+        if out.get("machine_status") == "running" and out.get("minutes_left") == 0:
+            out["machine_status"] = "done"  # the end screen keeps the running value
+        if self.asleep and "machine_status" in out:
+            out["machine_status"] = "off"
         session = self.gateway.session
         mode = self.mode
         if self.capture is not None:
