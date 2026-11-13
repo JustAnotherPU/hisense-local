@@ -159,8 +159,8 @@ def state_candidates(timeline):
 class Learner:
     """Settles what calibration left open, from status frames seen during a real cycle.
 
-    The time-left byte is the one copy that drops by one minute while the other copies
-    hold, twice. The state byte is the candidate that reads "running" at every such tick.
+    The time-left byte drops by one minute while the machine runs, twice (identical copies
+    drop together). The state byte is the candidate that reads "running" at every tick.
     """
 
     TICKS = 2
@@ -189,19 +189,28 @@ class Learner:
         if len(prev) != len(values) or max(pool) >= len(values):
             return {}
         down = [i for i in pool if values[i] == prev[i] - 1]
-        if len(down) != 1 or any(values[i] != prev[i] for i in pool if i != down[0]):
+        # copies of the time left drop together and agree; any other pool byte must hold
+        if not down or len({values[i] for i in down}) != 1 or any(
+                values[i] != prev[i] for i in pool if i not in down):
             return {}
-        self.states = [s for s in self.states
-                       if s["at"] < len(values) and s["map"].get(str(values[s["at"]])) == "running"]
+        running = [s for s in self.states
+                   if s["at"] < len(values) and s["map"].get(str(values[s["at"]])) == "running"]
+        if self.states and not running:
+            return {}  # nothing says the machine runs: a dial turn, not a countdown
+        self.states = running
         out = {}
         if self.clock is None:
             self.ticks[down[0]] = self.ticks.get(down[0], 0) + 1
             if self.ticks[down[0]] < self.TICKS:
                 return {}
-            self.clock, self.minutes = down[0], []
+            self.clock, self.minutes = down[0], []  # identical copies: the first is as good as any
             out["minutes_left"] = down[0]
-        if len(self.states) == 1:
-            out["machine_status"] = self.states.pop()
+        if len(self.states) == 1 or self.states and values[self.clock] <= 1:
+            # shortcut: several bytes held "running" all cycle; take the one naming most states
+            # (ready/running/stopped), lowest offset on a tie. Upgrade if a model reports a wrong pick.
+            pick = min(self.states, key=lambda s: (-len(set(s["map"].values())), s["at"]))
+            self.states = []
+            out["machine_status"] = pick
         return out
 
 

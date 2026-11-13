@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.5 (unreleased)
+
+- The time-left byte now settles when its copies count down together, which is how the washer
+  reports it. A countdown only counts while a state candidate reads "running".
+- If several state bytes read "running" through the whole cycle, the one naming the most states is
+  picked when the time left reaches one minute.
+
 ## 0.1.4 (unreleased)
 
 - Calibration keeps the readings it could not settle as candidates. During the next wash the add-on
