@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.env
+/data/
+captures/
+sessions/
+*.pem
+session*.json
+login.json
+commands.json
+library.json
+dist/

@@ -1,0 +1,31 @@
+configuration:
+  mqtt_url:
+    name: MQTT broker
+    description: URL of the broker, for example mqtt://core-mosquitto:1883 (mqtts:// for TLS).
+  mqtt_user:
+    name: MQTT user
+  mqtt_password:
+    name: MQTT password
+  peer_ip:
+    name: Allowed peer
+    description: Only accept the washer link from this address (the router address when it masquerades). Empty accepts any.
+  discovery:
+    name: Discovery
+    description: "device: one discovery message (Home Assistant 2024.11 or later). per_entity: one message per entity."
+  active_session:
+    name: Active session
+    description: Id of the session to replay. Empty uses the one set by the first import.
+  capture_date:
+    name: Capture date
+    description: YYYY-MM-DD. On that day only, the next washer login is relayed to the cloud and recorded. Leave empty.
+  cloud_addr:
+    name: Cloud address
+    description: IP address of the vendor cloud, used only by a capture. Never a host name.
+  calibrate:
+    name: Calibrate
+    description: Instead of serving, step through settings once and write the status byte map. Turn off afterwards.
+  calibrate_cycle:
+    name: Calibrate with a cycle
+    description: Also run START, PAUSE, RESUME, STOP on the quick program. Drum must be empty.
+network:
+  4444/tcp: Washer TLS link
