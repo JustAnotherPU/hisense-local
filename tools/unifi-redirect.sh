@@ -1,8 +1,10 @@
 #!/bin/sh
 # Run on a UniFi gateway (UDM, UDR, UCG, UXG) as root:
 #   sh unifi-redirect.sh install WASHER_IP HA_IP     redirect the washer to the add-on, now and after reboots
+#   sh unifi-redirect.sh ensure WASHER_IP HA_IP      install only if missing; prints "ok" or "reinstalled"
 #   sh unifi-redirect.sh remove                      undo it
-# After a gateway firmware update, run the install line again: updates wipe /etc but keep /data.
+# A gateway firmware update wipes /etc but keeps /data. Run "ensure" from a scheduler on another
+# machine (ssh root@GATEWAY sh /data/hisense-local/unifi-redirect.sh ensure ...) to put it back.
 set -eu
 DIR=${HL_DIR:-/data/hisense-local}
 UNIT=${HL_UNIT:-/etc/systemd/system/hisense-local-rules}
@@ -45,6 +47,14 @@ EOF
     "$DIR/washer-rules.sh"
     echo "redirect active: $W:443 -> $HA:4444. Set peer_ip to this gateway's address on the washer's network."
     ;;
+ensure)
+    if systemctl is-active --quiet hisense-local-rules.timer && [ -x "$DIR/washer-rules.sh" ] \
+            && grep -q "^W=${2:-}; HA=${3:-};" "$DIR/washer-rules.sh"; then
+        echo ok
+    else
+        sh "$0" install "${2:-}" "${3:-}" >/dev/null 2>&1 && echo reinstalled
+    fi
+    ;;
 remove)
     systemctl disable --now hisense-local-rules.timer 2>/dev/null || true
     rm -f "$UNIT.service" "$UNIT.timer"; systemctl daemon-reload
@@ -56,5 +66,5 @@ remove)
     echo "redirect removed"
     ;;
 *)
-    echo "usage: $0 install WASHER_IP HA_IP | remove" >&2; exit 2 ;;
+    echo "usage: $0 install|ensure WASHER_IP HA_IP | remove" >&2; exit 2 ;;
 esac

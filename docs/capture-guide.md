@@ -61,12 +61,21 @@ result afterwards with `iptables -t nat -S | grep hisense-cap`.
 Copy it to the gateway and run it there over SSH, with the washer's address and Home Assistant's:
 
 ```sh
-scp tools/unifi-redirect.sh root@GATEWAY:/data/
-ssh root@GATEWAY sh /data/unifi-redirect.sh install 192.168.1.50 192.168.1.20
+ssh root@GATEWAY mkdir -p /data/hisense-local
+scp tools/unifi-redirect.sh root@GATEWAY:/data/hisense-local/
+ssh root@GATEWAY sh /data/hisense-local/unifi-redirect.sh install 192.168.1.50 192.168.1.20
 ```
 
 Set `peer_ip` to the gateway's address on the washer's network. A gateway firmware update removes
-the timer, so run the same install line again afterwards. `sh /data/unifi-redirect.sh remove`
+the timer. To put it back without thinking about it, have another machine run `ensure` on a
+schedule. It does nothing while the redirect is in place, reinstalls it when it is gone, and prints
+`ok` or `reinstalled`:
+
+```sh
+ssh root@GATEWAY sh /data/hisense-local/unifi-redirect.sh ensure 192.168.1.50 192.168.1.20
+```
+
+Copy the script to `/data/hisense-local/` for this, since `/data` survives updates. `sh /data/hisense-local/unifi-redirect.sh remove`
 undoes everything. For step 4, add a firewall policy in the UniFi interface that blocks the
 washer's internet access.
 

@@ -6,6 +6,8 @@
   on the tested machine, so the status sensors appear right after the first capture.
 - `tools/unifi-redirect.sh` sets up the redirect on a UniFi gateway and keeps it across reboots.
   Every iptables call waits for the lock, since UniFi rewrites its own rules at the same time.
+  `ensure` reinstalls the redirect only when a firmware update has removed it, for use from a
+  scheduler on another machine.
 - README: a quick start for the WF5I1045BWQ.
 - A State value that no cycle has named reads as unknown instead of a raw number.
 
