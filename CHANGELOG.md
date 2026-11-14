@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.1.8 (unreleased)
+
+- Prebuilt images for amd64 and aarch64 on GitHub's container registry, so installing no longer
+  builds on the Home Assistant machine.
+- README: a button that adds the repository to Home Assistant in one click.
+
 ## 0.1.7 (unreleased)
 
 - New `model` option. With `WF5I1045BWQ` and no calibration, the add-on uses the readings settled

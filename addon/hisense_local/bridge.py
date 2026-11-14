@@ -15,7 +15,7 @@ log = logging.getLogger("bridge")
 
 BASE = "hisense_local"
 DEVICE_ID = "hisense_local"
-VERSION = "0.1.7"
+VERSION = "0.1.8"
 # property and field names end up in MQTT topics and Home Assistant templates
 NAME = re.compile(r"[A-Za-z_][A-Za-z0-9_]*")
 

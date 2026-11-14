@@ -12,6 +12,7 @@ Supported models: WF5I1045BWQ only, so far. Does my model work? If you try anoth
 the result with the [model report form](.github/ISSUE_TEMPLATE/model-report.yml).
 
 - [Quick start for the WF5I1045BWQ](#quick-start-for-the-wf5i1045bwq)
+- [Install](#install): one-click button
 - [Capture guide](docs/capture-guide.md): redirecting the washer and recording a session.
 - [Limits](docs/limits.md): what was verified, what was not, and what can break it.
 
@@ -55,9 +56,11 @@ The same value always gives the same frame, so one recording per value is enough
 
 ## Install
 
-1. In Home Assistant, open Settings > Add-ons > Add-on store, open the menu, choose Repositories
-   and add `https://github.com/JustAnotherPU/hisense-local`.
-2. Install "Hisense Local".
+[![Add the repository to Home Assistant](https://my.home-assistant.io/badges/supervisor_add_addon_repository.svg)](https://my.home-assistant.io/redirect/supervisor_add_addon_repository/?repository_url=https%3A%2F%2Fgithub.com%2FJustAnotherPU%2Fhisense-local)
+
+1. Click the button above, or in Home Assistant open Settings > Add-ons > Add-on store, open the
+   menu, choose Repositories and add `https://github.com/JustAnotherPU/hisense-local`.
+2. Install "Hisense Local". The image is prebuilt for amd64 and aarch64, so this takes seconds.
 3. Set the options, put a session in place (next section), then start it.
 
 To install by hand instead, run `tools/pack_addon.sh`, which writes `dist/hisense_local.tar.gz`,
