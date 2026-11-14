@@ -11,8 +11,26 @@ It needs no cloud account at run time and does not touch the washer's firmware.
 Supported models: WF5I1045BWQ only, so far. Does my model work? If you try another one, report
 the result with the [model report form](.github/ISSUE_TEMPLATE/model-report.yml).
 
+- [Quick start for the WF5I1045BWQ](#quick-start-for-the-wf5i1045bwq)
 - [Capture guide](docs/capture-guide.md): redirecting the washer and recording a session.
 - [Limits](docs/limits.md): what was verified, what was not, and what can break it.
+
+## Quick start for the WF5I1045BWQ
+
+This model has been tested, and the add-on ships its status readings, so you can skip the
+calibration and the learning wash. You need Home Assistant with an MQTT broker, a router that can
+redirect one connection, and your vendor account for a single capture.
+
+1. Install the add-on (see [Install](#install)). Set `model` to `WF5I1045BWQ` and fill in the MQTT
+   options.
+2. On the router, send the washer's TLS connection to the add-on and set `peer_ip`
+   ([capture guide, step 1](docs/capture-guide.md#1-redirect-the-washers-tls-connection-to-the-add-on)).
+3. Record a session once with the driver script and `--with-cycle`, drum empty
+   ([capture guide, steps 2 to 4](docs/capture-guide.md#2-arm-the-capture)).
+4. Block the washer from the internet and keep the redirect.
+5. Restart the add-on. Program, time left and state show up as soon as the washer connects.
+
+If a step fails, open an issue with the add-on log. Logs never contain keys or the washer id.
 
 ## How it works
 
@@ -50,6 +68,7 @@ the same slug.
 | `mqtt_url` | `mqtt://core-mosquitto:1883` | Broker URL; `mqtts://` for TLS |
 | `mqtt_user`, `mqtt_password` | empty | Broker login |
 | `peer_ip` | empty | Accept the washer link only from this address (the router's, when it masquerades) |
+| `model` | `other` | `WF5I1045BWQ` uses the built-in status readings when no calibration has run |
 | `discovery` | `device` | `device` (Home Assistant 2024.11+) or `per_entity` |
 | `active_session` | empty | Session to replay, by id or its first characters; empty uses the active one |
 | `capture_date` | empty | `YYYY-MM-DD`: arms a capture for that day only |
@@ -81,10 +100,13 @@ makes it active if none is, and deletes the shared copy, since other add-ons can
 ### Capture
 
 A capture lets one washer login through to the real cloud and records it, with one frame per
-setting. The steps are in the [capture guide](docs/capture-guide.md). For now a capture needs an
-existing session for the same washer.
+setting. The steps are in the [capture guide](docs/capture-guide.md). A first capture, with no
+session yet, needs `peer_ip`.
 
 ## Calibration
+
+Skip this section on a WF5I1045BWQ with `model` set: its readings are built in. A calibration
+still runs on that model if you turn it on, and its result then replaces the built-in one.
 
 Turn `calibrate` on and start the add-on with the washer on, panel on, drum empty, door closed. It
 steps through programs, temperatures, spin speeds, delay values and options, compares the status

@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.1.7 (unreleased)
+
+- New `model` option. With `WF5I1045BWQ` and no calibration, the add-on uses the readings settled
+  on the tested machine, so the status sensors appear right after the first capture.
+- `tools/unifi-redirect.sh` sets up the redirect on a UniFi gateway and keeps it across reboots.
+- README: a quick start for the WF5I1045BWQ.
+
 ## 0.1.6 (unreleased)
 
 - The State sensor reads "done" on the end screen, where the washer keeps reporting its running

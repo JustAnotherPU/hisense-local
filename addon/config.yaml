@@ -1,5 +1,5 @@
 name: Hisense Local
-version: "0.1.6"
+version: "0.1.7"
 slug: hisense_local
 description: Serves a Hisense washer at home and bridges it to MQTT
 arch:
@@ -22,6 +22,7 @@ options:
   mqtt_user: ""
   mqtt_password: ""
   peer_ip: ""
+  model: other
   discovery: device
   active_session: ""
   capture_date: ""
@@ -33,6 +34,7 @@ schema:
   mqtt_user: str?
   mqtt_password: password?
   peer_ip: str?
+  model: list(other|WF5I1045BWQ)
   discovery: list(device|per_entity)
   active_session: str?
   capture_date: str?

@@ -112,3 +112,20 @@ CALIBRATION_PROPS = ["Selected_program_ID", "temperature", "Spin_speed_rpm", "De
                      "Child_lock", "DownLight"] + [p for p in SWITCH_NAMES if p not in ("Child_lock", "DownLight")]
 QUICK_PROGRAM = 11
 DEFAULT_PROGRAM = 9
+
+
+# Status readings already settled on a tested model, used when no calibration has run.
+# A calibration file, when present, always wins.
+PROFILES = {
+    "WF5I1045BWQ": {
+        "Selected_program_ID": {"at": 18, "map": {"26": 42, "27": 44, "33": 52, "37": 56, "38": 57}},
+        "temperature": 19,
+        "Spin_speed_rpm": 20,
+        "Child_lock": [22, 8, 8],
+        "Prewash": [22, 16, 16],
+        "AntiCrease": [22, 64, 64],
+        "DownLight": [69, 8, 8],
+        "minutes_left": 29,
+        "machine_status": {"at": 92, "map": {"127": "ready", "64": "running", "74": "stopped"}},
+    },
+}

@@ -41,6 +41,20 @@ class CalibrateOnceTest(unittest.TestCase):
         self.assertEqual(self.calls, ["calibrate", "serve", "serve", "calibrate"])
 
 
+class PickOffsetsTest(unittest.TestCase):
+    def test_profile_only_without_a_calibration(self):
+        with tempfile.TemporaryDirectory() as tmp:
+            path = os.path.join(tmp, "status_offsets.json")
+            got = app.pick_offsets(path, "WF5I1045BWQ")
+            self.assertEqual(got["minutes_left"], 29)
+            self.assertEqual(got["machine_status"]["at"], 92)
+            self.assertEqual(len(got), len(app.catalog.PROFILES["WF5I1045BWQ"]))  # every entry is valid
+            self.assertEqual(app.pick_offsets(path, "other"), {})
+            with open(path, "w") as fh:
+                json.dump({"offsets": {"temperature": 7}}, fh)
+            self.assertEqual(app.pick_offsets(path, "WF5I1045BWQ"), {"temperature": 7})
+
+
 class OpenLearnerTest(unittest.TestCase):
     def test_rebuilds_candidates_only_from_the_matching_report(self):
         with tempfile.TemporaryDirectory() as tmp:

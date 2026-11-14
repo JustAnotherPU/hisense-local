@@ -7,6 +7,7 @@ import signal
 import time
 from urllib.parse import urlparse
 
+from . import catalog
 from . import session as sessionlib
 from . import wire
 from .bridge import BASE, NAME, VERSION, Bridge
@@ -35,6 +36,15 @@ def load_offsets(path):
     if len(good) != len(raw):
         log.warning("status_offsets.json: %d malformed entries ignored", len(raw) - len(good))
     return good
+
+
+def pick_offsets(path, model):
+    """The calibration result, or the built-in readings for a tested model when none exists."""
+    offsets = load_offsets(path)
+    if not offsets and model in catalog.PROFILES:
+        log.info("no calibration yet: using the built-in %s readings", model)
+        offsets = {k: v for k, v in catalog.PROFILES[model].items() if wire.valid_spec(v)}
+    return offsets
 
 
 def open_learner(path, share, offsets):
@@ -136,7 +146,7 @@ async def run_async(args, opts):
     data, gw, server, capture = await serve(args, opts, with_mqtt=True)
     client, host, port = mqtt_client(opts)
     path = os.path.join(args.data, "status_offsets.json")
-    offsets = load_offsets(path)
+    offsets = pick_offsets(path, opts.get("model", ""))
     learner = open_learner(path, args.share, offsets)
 
     def save_offsets(found, left):
