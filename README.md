@@ -30,6 +30,8 @@ redirect one connection, and your vendor account for a single capture.
 4. Block the washer from the internet and keep the redirect.
 5. Restart the add-on. Program, time left and state show up as soon as the washer connects.
 
+Step 3 has seen the least real use. The capture code has only run against a stand-in cloud, and
+the test washer's session was recorded with an earlier tool (see [limits](docs/limits.md#other)).
 If a step fails, open an issue with the add-on log. Logs never contain keys or the washer id.
 
 ## How it works
@@ -119,7 +121,7 @@ With `calibrate_cycle` it also runs start, pause, resume and stop on the quick p
 every status, which narrows down the state reading. The short test cycle is too brief for the
 minute counter to move, so the time-left and state readings are settled during the first real wash
 afterwards: the add-on watches which copy counts down, saves the result and adds the State sensor.
-See [limits](docs/limits.md#status-readings-need-a-calibration).
+See [limits](docs/limits.md#status-readings).
 
 To decode every status frame found as hex in a capture log, offline:
 
@@ -136,8 +138,9 @@ and are available only while both the add-on and the washer link are up.
 - Switches: any option recorded both on and off, plus child lock and drum light. Which options
   the test machine accepts is in [limits](docs/limits.md).
 - Buttons: start, pause, resume, stop (recorded with `--with-cycle`).
-- Sensors found by calibration, plus diagnostics: last command result, recorded frames, session,
-  mode.
+- Sensors: time left in minutes and State, which reads `ready`, `running`, `stopped`, `done` (end
+  screen) or `off` (the washer stopped answering). They come from the built-in readings or a
+  calibration. Diagnostics: last command result, recorded frames, session, mode.
 
 Commands go to `hisense_local/set/<property>`. Each result is published on `hisense_local/result`:
 `ok`, `refused err=N`, `no ack`, `not captured`, `not offered`, `washer offline`, `logging in` or

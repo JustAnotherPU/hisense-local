@@ -119,6 +119,8 @@ class BridgeTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(self.client.last("hisense_local/state")["machine_status"], "off")
         self.bridge.on_status([127, 0, 0, 15])
         self.assertEqual(self.client.last("hisense_local/state")["machine_status"], "ready")
+        self.bridge.on_status([71, 0, 0, 19])
+        self.assertIsNone(self.client.last("hisense_local/state")["machine_status"])  # unnamed value
 
     async def test_unrecorded_value_not_sent_to_washer(self):
         await self.deliver(msg("hisense_local/set/temperature", "1"))
@@ -200,3 +202,14 @@ class LearnTest(unittest.IsolatedAsyncioTestCase):
         self.assertEqual(bridge.offsets["minutes_left"], 3)
         self.assertEqual(saved, [({"minutes_left": 3}, {})])
         self.assertEqual(self.client.last("hisense_local/state")["minutes_left"], 13)
+
+
+class ProfileTest(unittest.IsolatedAsyncioTestCase):
+    async def test_built_in_profile_offers_the_status_sensors(self):
+        from hisense_local import catalog
+        bridge = bridgelib.Bridge(StubClient(), asyncio.get_running_loop(),
+                                  StubGateway(fakes.FakeSession().session()),
+                                  offsets=dict(catalog.PROFILES["WF5I1045BWQ"]))
+        cmps = bridge.discovery()[0][1]["cmps"]
+        self.assertEqual(cmps["minutes_left"]["p"], "sensor")
+        self.assertEqual(cmps["machine_status"]["name"], "State")

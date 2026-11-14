@@ -55,9 +55,10 @@ Make the rules survive a router reboot. If they vanish, the washer reaches the r
 
 ### On a UniFi gateway
 
-The UniFi interface cannot add the masquerade, so `tools/unifi-redirect.sh` adds both rules and a
-timer that puts them back after a reboot or a settings change. Copy it to the gateway and run it
-there over SSH, with the washer's address and Home Assistant's:
+`tools/unifi-redirect.sh` adds both rules, plus a timer that puts them back after a reboot or a
+settings change. It writes the rules the test setup uses, but the script itself has only run
+against stand-ins, so check the result afterwards with `iptables -t nat -S | grep hisense-cap`.
+Copy it to the gateway and run it there over SSH, with the washer's address and Home Assistant's:
 
 ```sh
 scp tools/unifi-redirect.sh root@GATEWAY:/data/
@@ -66,8 +67,8 @@ ssh root@GATEWAY sh /data/unifi-redirect.sh install 192.168.1.50 192.168.1.20
 
 Set `peer_ip` to the gateway's address on the washer's network. A gateway firmware update removes
 the timer, so run the same install line again afterwards. `sh /data/unifi-redirect.sh remove`
-undoes everything. To block the washer from the internet (step 4), add a firewall policy in the
-UniFi interface that blocks the washer to the internet.
+undoes everything. For step 4, add a firewall policy in the UniFi interface that blocks the
+washer's internet access.
 
 Before adding the rule, note the address the washer connects to on port 443, from the router's
 connection table or DNS log. You need it as `cloud_addr` below.

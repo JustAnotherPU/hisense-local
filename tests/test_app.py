@@ -49,6 +49,7 @@ class PickOffsetsTest(unittest.TestCase):
             self.assertEqual(got["minutes_left"], 29)
             self.assertEqual(got["machine_status"]["at"], 92)
             self.assertEqual(len(got), len(app.catalog.PROFILES["WF5I1045BWQ"]))  # every entry is valid
+            self.assertIsNone(app.open_learner(path, tmp, got))  # nothing left to learn
             self.assertEqual(app.pick_offsets(path, "other"), {})
             with open(path, "w") as fh:
                 json.dump({"offsets": {"temperature": 7}}, fh)

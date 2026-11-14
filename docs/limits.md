@@ -38,12 +38,13 @@ WindDrying. They are not recorded and get no entity.
 Other option names in the add-on's catalog (steam, anti-crease and so on) appear in Home Assistant
 only when a capture recorded them with both on and off. The lists above are all that was checked.
 
-## Status readings need a calibration
+## Status readings
 
 The status frame carries the machine's settings and state, but where each value sits differs from
-model to model. No position is assumed; a calibration finds them and writes
-`/data/status_offsets.json`. Until one has run, controls show the last acknowledged command and the
-status sensors (state, phase, door, time left) do not appear.
+model to model. The positions for the WF5I1045BWQ are built in and used when `model` is set to it.
+On any other model a calibration finds them and writes `/data/status_offsets.json`. Until then,
+controls show the last acknowledged command and the status sensors (time left, state) do not
+appear.
 
 The calibration copes with two quirks seen on the test machine:
 

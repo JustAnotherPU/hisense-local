@@ -202,6 +202,8 @@ class Bridge:
         for field, spec in self.offsets.items():
             if field not in out and self.values is not None:
                 out[field] = wire.field_value(self.values, spec)
+        if "machine_status" in out and not isinstance(out["machine_status"], str):
+            out["machine_status"] = None  # a value no cycle has named yet
         if out.get("machine_status") == "running" and out.get("minutes_left") == 0:
             out["machine_status"] = "done"  # the end screen keeps the running value
         if self.asleep and "machine_status" in out:
