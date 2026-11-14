@@ -75,7 +75,7 @@ schedule. It does nothing while the redirect is in place, reinstalls it when it 
 ssh root@GATEWAY sh /data/hisense-local/unifi-redirect.sh ensure 192.168.1.50 192.168.1.20
 ```
 
-Copy the script to `/data/hisense-local/` for this, since `/data` survives updates. `sh /data/hisense-local/unifi-redirect.sh remove`
+The script lives in `/data`, which survives updates. `sh /data/hisense-local/unifi-redirect.sh remove`
 undoes everything. For step 4, add a firewall policy in the UniFi interface that blocks the
 washer's internet access.
 
