@@ -5,6 +5,7 @@
 - New `model` option. With `WF5I1045BWQ` and no calibration, the add-on uses the readings settled
   on the tested machine, so the status sensors appear right after the first capture.
 - `tools/unifi-redirect.sh` sets up the redirect on a UniFi gateway and keeps it across reboots.
+  Every iptables call waits for the lock, since UniFi rewrites its own rules at the same time.
 - README: a quick start for the WF5I1045BWQ.
 - A State value that no cycle has named reads as unknown instead of a raw number.
 

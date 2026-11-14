@@ -56,8 +56,8 @@ Make the rules survive a router reboot. If they vanish, the washer reaches the r
 ### On a UniFi gateway
 
 `tools/unifi-redirect.sh` adds both rules, plus a timer that puts them back after a reboot or a
-settings change. It writes the rules the test setup uses, but the script itself has only run
-against stand-ins, so check the result afterwards with `iptables -t nat -S | grep hisense-cap`.
+settings change. It runs on the test setup, a UDM Pro Max. On another UniFi gateway, check the
+result afterwards with `iptables -t nat -S | grep hisense-cap`.
 Copy it to the gateway and run it there over SSH, with the washer's address and Home Assistant's:
 
 ```sh

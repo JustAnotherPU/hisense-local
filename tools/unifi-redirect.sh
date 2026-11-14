@@ -19,18 +19,20 @@ install)
 W=$W; HA=$HA; P=4444; C="hisense-cap"
 EOF
     cat >> "$DIR/washer-rules.sh" <<'EOF'
-iptables -t nat -C PREROUTING -s $W/32 -p tcp -m tcp --dport 443 -m comment --comment $C -j DNAT --to-destination $HA:$P 2>/dev/null \
-  || iptables -t nat -I PREROUTING 1 -s $W/32 -p tcp -m tcp --dport 443 -m comment --comment $C -j DNAT --to-destination $HA:$P
-iptables -t nat -C POSTROUTING -s $W/32 -d $HA/32 -p tcp -m tcp --dport $P -m comment --comment $C -j MASQUERADE 2>/dev/null \
-  || iptables -t nat -I POSTROUTING 1 -s $W/32 -d $HA/32 -p tcp -m tcp --dport $P -m comment --comment $C -j MASQUERADE
+# -w: UniFi rewrites its own rules at the same time; wait for the xtables lock instead of failing
+ipt() { iptables -w 10 "$@"; }
+ipt -t nat -C PREROUTING -s $W/32 -p tcp -m tcp --dport 443 -m comment --comment $C -j DNAT --to-destination $HA:$P 2>/dev/null \
+  || ipt -t nat -I PREROUTING 1 -s $W/32 -p tcp -m tcp --dport 443 -m comment --comment $C -j DNAT --to-destination $HA:$P
+ipt -t nat -C POSTROUTING -s $W/32 -d $HA/32 -p tcp -m tcp --dport $P -m comment --comment $C -j MASQUERADE 2>/dev/null \
+  || ipt -t nat -I POSTROUTING 1 -s $W/32 -d $HA/32 -p tcp -m tcp --dport $P -m comment --comment $C -j MASQUERADE
 # The two ACCEPTs must sit before UniFi's own jump, or a zone rule such as "block IoT to LAN" drops the link.
-jump=$(iptables -S FORWARD | grep -n -- "-j UBIOS_FORWARD_JUMP" | head -1 | cut -d: -f1)
+jump=$(ipt -S FORWARD | grep -n -- "-j UBIOS_FORWARD_JUMP" | head -1 | cut -d: -f1)
 for dir in out back; do
   if [ $dir = out ]; then R="-s $W/32 -d $HA/32 -p tcp -m tcp --dport $P"; else R="-s $HA/32 -d $W/32 -p tcp -m tcp --sport $P"; fi
-  pos=$(iptables -S FORWARD | grep -n -- "$R -m comment --comment $C -j ACCEPT" | head -1 | cut -d: -f1)
+  pos=$(ipt -S FORWARD | grep -n -- "$R -m comment --comment $C -j ACCEPT" | head -1 | cut -d: -f1)
   if [ -z "$pos" ] || { [ -n "$jump" ] && [ "$pos" -gt "$jump" ]; }; then
-    [ -n "$pos" ] && iptables -D FORWARD $R -m comment --comment $C -j ACCEPT
-    iptables -I FORWARD 1 $R -m comment --comment $C -j ACCEPT
+    [ -n "$pos" ] && ipt -D FORWARD $R -m comment --comment $C -j ACCEPT
+    ipt -I FORWARD 1 $R -m comment --comment $C -j ACCEPT
     logger -t hisense-local "re-added FORWARD $dir rule"
   fi
 done
@@ -47,8 +49,8 @@ remove)
     systemctl disable --now hisense-local-rules.timer 2>/dev/null || true
     rm -f "$UNIT.service" "$UNIT.timer"; systemctl daemon-reload
     for tbl in nat filter; do
-        iptables -t $tbl -S | grep -- "--comment hisense-cap" | sed 's/^-A/-D/' |
-            while read -r rule; do eval "iptables -t $tbl $rule"; done
+        iptables -w 10 -t $tbl -S | grep -- "--comment hisense-cap" | sed 's/^-A/-D/' |
+            while read -r rule; do eval "iptables -w 10 -t $tbl $rule"; done
     done
     rm -f "$DIR/washer-rules.sh"
     echo "redirect removed"
