@@ -1,5 +1,5 @@
 name: Hisense Local
-version: "0.2.0"
+version: "0.2.1"
 slug: hisense_local
 image: "ghcr.io/justanotherpu/{arch}-hisense-local"
 description: Serves a Hisense washer at home and bridges it to MQTT

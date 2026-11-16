@@ -80,3 +80,7 @@ the command format and end local control, so keep the washer off the internet.
 - Once a cycle has finished, the washer acknowledges new program and start commands but ignores
   them. Open the door or switch it off and on before the next remote start. Stop, pause and resume
   do not clear the end screen, and Stop on the end screen switches the washer off.
+- Learn mode cannot name pause and resume: on the tested washer they change no status byte. It names
+  Start and Stop only from the State reading, so a Stop that switches the washer off, with no status
+  after it, stays unnamed. Neither naming rule has run on the washer yet; both rest on the statuses
+  recorded during the calibration cycle.

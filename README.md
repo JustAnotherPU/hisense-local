@@ -116,8 +116,15 @@ by the setting it changes. Use the machine as usual for a wash or two; the panel
 commands it has learned. When enough are known, turn `learn_mode` off and the add-on serves them
 locally.
 
-A command that changes nothing, or several settings at once, is left unnamed instead of guessed.
-Learn mode needs the model profile or a calibration so it can read which setting moved.
+A command that changes several settings at once is left unnamed instead of guessed. A program
+change is the exception: it is named as the program, because temperature, spin and options then
+move to that program's defaults. A command that changes no setting is named Start when the State
+goes from ready to running, and Stop when it goes from running to stopped.
+
+Pause and resume change nothing in the status, so learn mode cannot name them. Record them with a
+capture and `--with-cycle`. A Stop that switches the washer off can also stay unnamed, because no
+status follows it. Learn mode needs the model profile or a calibration to read which setting moved,
+and a settled State reading to name Start and Stop.
 
 ## Calibration
 

@@ -63,7 +63,12 @@ class Learn:
         # the labeller names a command by which settable property's decoded value moved;
         # field_value reads every spec kind (byte, index map, flag bit, multi-byte sum)
         self.specs = {k: v for k, v in (offsets or {}).items() if wire.valid_spec(v)}
-        self.labeler = Labeler(self.specs, wire.field_value)
+        # an unsettled machine_status (a candidate list) fails valid_spec: no START/STOP naming
+        self.state_spec = self.specs.get("machine_status")
+        self.labeler = self._labeler()
+
+    def _labeler(self):
+        return Labeler(self.specs, wire.field_value, state_spec=self.state_spec)
 
     def on_cmd(self, seq):
         self.labeler.on_command(seq)
@@ -73,7 +78,7 @@ class Learn:
 
     def on_close(self, record):
         labels = self.labeler.report()["labelled"]
-        self.labeler = Labeler(self.specs, wire.field_value)  # fresh baseline for the next login
+        self.labeler = self._labeler()  # fresh baseline for the next login
         if not self.specs:
             log.warning("no calibration offsets: cannot name commands yet (run calibrate)")
             return

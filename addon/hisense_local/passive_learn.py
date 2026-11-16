@@ -12,8 +12,11 @@ decryption and for every property kind (plain byte, index map, flag bit, multi-b
 Only user-settable properties are considered; read-only status (machine_status,
 minutes_left, water/energy counters) is ignored, because it moves as a CONSEQUENCE of a
 command, not as the command. If, after that filter, exactly one settable property
-changed, the frame is named; zero or several leave it unlabelled rather than mislabelled
-(a wrong label would replay the wrong frame later).
+changed, the frame is named; several leave it unlabelled rather than mislabelled (a wrong
+label would replay the wrong frame later). Two exceptions: a program change is named as
+the program even though temperature, spin and options follow it, and a command that moves
+no setting is named START or STOP only when the state goes ready->running or
+running->stopped. Pause and resume change no status byte, so they stay unnamed.
 
 This is the engine behind "install, use your washer normally, local control appears":
 no ConnectLife account, no command sweep. It is a pure state machine fed (command,
@@ -31,6 +34,12 @@ READ_ONLY = frozenset({"machine_status", "minutes_left", "cycle_energy", "cycle_
                        "Door_status", "water_used", "energy_used"})
 
 
+PROGRAM = "Selected_program_ID"
+# (state before, state after) -> the frame label the add-on's buttons replay
+ACTIONS = {("ready", "running"): "Actions=2",   # start
+           ("running", "stopped"): "Actions=1"}  # stop
+
+
 class Labeler:
     """Fed status/command events in wire order; yields {seq: "prop=val"} as it resolves.
 
@@ -38,8 +47,11 @@ class Labeler:
     decode: field_value(values, spec) -> the property's value, or None.
     ignore: property names to skip (read-only status); defaults to READ_ONLY."""
 
-    def __init__(self, specs: dict, decode, ignore=READ_ONLY):
+    def __init__(self, specs: dict, decode, ignore=READ_ONLY, state_spec=None):
         self.decode = decode
+        # machine_status spec ({"at", "map"} naming ready/running/stopped), or None: START
+        # and STOP are named only from a ready->running / running->stopped transition
+        self.state_spec = state_spec
         # keep only settable properties; a read-only field is an effect, not a command
         self.specs = {name: spec for name, spec in specs.items() if name not in ignore}
         self.last: list[int] | None = None   # last full status seen
@@ -71,13 +83,36 @@ class Labeler:
             if v_after is not None and v_before != v_after:
                 changed.append((name, v_after))
         key = str(seq)
+        program = [c for c in changed if c[0] == PROGRAM]
+        if program:
+            # a program change resets temperature, spin and options to that program's
+            # defaults, so the other moves are its consequence, not separate commands
+            changed = program
         if not changed:
-            self.unresolved[key] = "no settable property changed"
+            action = self._action(before, after)
+            if action:
+                self.labels[key] = action
+            else:
+                self.unresolved[key] = "no settable property changed"
         elif len(changed) > 1:
             self.unresolved[key] = "several properties changed: " + ", ".join(n for n, _ in changed)
         else:
             name, value = changed[0]
             self.labels[key] = f"{name}={value}"
+
+    def _action(self, before: list[int], after: list[int]) -> str | None:
+        """START or STOP, named only from a state transition seen in the status.
+
+        Pause and resume leave every status byte unchanged on the tested washer, and a
+        command on the end screen is acknowledged but ignored, so nothing else is named."""
+        if self.state_spec is None:
+            return None
+        try:
+            s_before = self.decode(before, self.state_spec)
+            s_after = self.decode(after, self.state_spec)
+        except (IndexError, ValueError, KeyError, TypeError):
+            return None
+        return ACTIONS.get((s_before, s_after))
 
     def report(self) -> dict:
         return {"labelled": dict(self.labels), "unresolved": dict(self.unresolved),
@@ -131,10 +166,15 @@ def selftest() -> None:
     lab.on_status([33, 6, 15, 64, 60])
     assert "4" not in lab.labels and "4" in lab.unresolved
 
-    # two settable properties at once -> ambiguous, refused
+    # two settable properties at once (neither the program) -> ambiguous, refused
     lab.on_command(5)
-    lab.on_status([27, 9, 15, 64, 50])       # program AND temperature changed
+    lab.on_status([33, 9, 0, 64, 50])        # temperature AND prewash changed
     assert "5" not in lab.labels and "several properties" in lab.unresolved["5"]
+
+    # a program change that also resets temperature -> named as the program
+    lab.on_command(6)
+    lab.on_status([27, 4, 0, 64, 50])
+    assert lab.labels["6"] == "Selected_program_ID=44", lab.labels
 
     # read-only specs are dropped at construction
     assert "machine_status" not in lab.specs and "minutes_left" not in lab.specs
@@ -146,6 +186,15 @@ def selftest() -> None:
     lab2.on_status([27, 4, 0, 32, 99])
     assert lab2.labels == {} and lab2.pending is None and "9" in lab2.unresolved
 
+    # START / STOP from the state transition; anything else with no settable change stays unnamed
+    state = {"at": 3, "map": {"127": "ready", "64": "running", "74": "stopped"}}
+    lab3 = Labeler(specs, decode, state_spec=state)
+    lab3.on_status([27, 4, 0, 127, 99])
+    lab3.on_command(20); lab3.on_status([27, 4, 0, 64, 99])   # ready -> running
+    lab3.on_command(21); lab3.on_status([27, 4, 0, 64, 98])   # pause: nothing moves
+    lab3.on_command(22); lab3.on_status([27, 4, 0, 74, 98])   # running -> stopped
+    assert lab3.labels == {"20": "Actions=2", "22": "Actions=1"}, lab3.labels
+    assert "21" in lab3.unresolved
     print("passive_learn selftest OK")
 
 

@@ -1,5 +1,11 @@
 # Changelog
 
+## 0.2.1 (unreleased)
+
+- Learn mode names program changes, even though temperature, spin and options move with them.
+- Learn mode names Start and Stop when the State goes from ready to running or from running to
+  stopped. Pause and resume change nothing in the status, so they stay unnamed.
+
 ## 0.2.0 (unreleased)
 
 - Learn mode. With `learn_mode` on, the add-on relays each login to the cloud and records the

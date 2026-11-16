@@ -68,9 +68,16 @@ class LabelerTest(unittest.TestCase):
         lab = self.labeler()
         lab.on_status(self.status())
         lab.on_command(5)
-        lab.on_status(self.status(prog=33, temp=9))
+        lab.on_status(self.status(temp=9, prewash=15))
         self.assertNotIn("5", lab.labels)
         self.assertIn("several properties", lab.unresolved["5"])
+
+    def test_program_change_with_reset_defaults_is_named_as_program(self):
+        lab = self.labeler()
+        lab.on_status(self.status())
+        lab.on_command(6)
+        lab.on_status(self.status(prog=33, temp=9, prewash=15))
+        self.assertEqual(lab.labels, {"6": "Selected_program_ID=52"})
 
     def test_read_only_specs_dropped_at_construction(self):
         lab = self.labeler()
@@ -84,6 +91,57 @@ class LabelerTest(unittest.TestCase):
         self.assertEqual(lab.labels, {})
         self.assertIsNone(lab.pending)
         self.assertIn("9", lab.unresolved)
+
+
+class ActionTest(unittest.TestCase):
+    STATE = {"at": 3, "map": {"127": "ready", "64": "running", "74": "stopped"}}
+
+    def labeler(self, state=STATE):
+        return Labeler(LabelerTest.SPECS, wire.field_value, state_spec=state)
+
+    def run_states(self, lab, *states):
+        """Baseline at states[0], then one command per following state."""
+        lab.on_status(LabelerTest.status(None, status=states[0]))
+        for seq, st in enumerate(states[1:], 1):
+            lab.on_command(seq)
+            lab.on_status(LabelerTest.status(None, status=st))
+
+    def test_start_and_stop_named_from_state_transitions(self):
+        lab = self.labeler()
+        self.run_states(lab, 127, 64, 64, 74)  # start, pause (no change), stop
+        self.assertEqual(lab.labels, {"1": "Actions=2", "3": "Actions=1"})
+        self.assertIn("2", lab.unresolved)  # pause and resume move nothing: unnamed
+
+    def test_end_screen_command_is_not_named(self):
+        lab = self.labeler()
+        self.run_states(lab, 64, 64)  # end screen keeps "running"; the command is ignored
+        self.assertEqual(lab.labels, {})
+
+    def test_other_state_moves_are_not_named(self):
+        lab = self.labeler()
+        self.run_states(lab, 74, 127, 64, 127)  # stopped->ready, then running->ready
+        self.assertEqual(lab.labels, {"2": "Actions=2"})
+        self.assertIn("1", lab.unresolved)
+        self.assertIn("3", lab.unresolved)
+
+    def test_no_state_spec_names_no_action(self):
+        lab = self.labeler(state=None)
+        self.run_states(lab, 127, 64, 74)
+        self.assertEqual(lab.labels, {})
+
+    def test_setting_change_during_start_is_not_an_action(self):
+        lab = self.labeler()
+        lab.on_status(LabelerTest.status(None, status=127))
+        lab.on_command(1)
+        lab.on_status(LabelerTest.status(None, status=64, temp=6))
+        self.assertEqual(lab.labels, {"1": "temperature=6"})
+
+    def test_learn_skips_actions_when_state_is_unsettled(self):
+        with tempfile.TemporaryDirectory() as d:
+            offsets = {"temperature": 1, "machine_status": [{"at": 3, "map": {"64": "running"}}]}
+            self.assertIsNone(learnlib.Learn(sessionlib.DataDir(d), offsets).state_spec)
+            offsets["machine_status"] = self.STATE
+            self.assertEqual(learnlib.Learn(sessionlib.DataDir(d), offsets).state_spec, self.STATE)
 
 
 class RelabelTest(unittest.TestCase):
