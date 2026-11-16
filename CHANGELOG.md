@@ -1,5 +1,15 @@
 # Changelog
 
+## 0.2.0 (unreleased)
+
+- Learn mode. With `learn_mode` on, the add-on relays each login to the cloud and records the
+  commands you send from the phone app, naming each one by the setting it changes: the program,
+  temperature, spin or an option. Local control builds up as you use the machine, with no capture
+  run needed. The session with the most commands becomes the active one; a smaller one does not
+  replace it.
+- A panel inside Home Assistant, through Ingress. It shows whether the washer is connected, how
+  many commands are known, and a button to switch between learning and local control.
+
 ## 0.1.8 (unreleased)
 
 - Prebuilt images for amd64 and aarch64 on GitHub's container registry, so installing no longer

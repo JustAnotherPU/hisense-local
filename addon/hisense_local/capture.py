@@ -58,7 +58,8 @@ def firmware_safe(frame):
 
 class Capture:
     def __init__(self, data, capture_date, cloud_addr, cloud_port=443, upstream_ssl="default",
-                 on_got=None, today=datetime.date.today, idle_timeout=540.0):
+                 on_got=None, today=datetime.date.today, idle_timeout=540.0,
+                 learn=False, on_cmd=None, on_close=None):
         self.data = data
         self.capture_date = capture_date
         try:  # an address only: a host name could be answered by anyone, or by this gateway
@@ -70,6 +71,9 @@ class Capture:
         self.cloud_port = cloud_port
         self.upstream_ssl = upstream_context() if upstream_ssl == "default" else upstream_ssl
         self.on_got = on_got or (lambda label, seq, sid: None)
+        self.learn = learn                                   # continuous relay + passive labelling
+        self.on_cmd = on_cmd or (lambda seq: None)           # fed each recorded 201 seq
+        self.on_close = on_close or (lambda record: None)    # fed the finished record (learn mode)
         self.today = today
         self.idle_timeout = idle_timeout
         self.running = False
@@ -83,7 +87,11 @@ class Capture:
 
     def armed(self):
         day = self.today().isoformat()
-        return bool(self.cloud_addr) and self.capture_date == day and not os.path.exists(self.marker(day))
+        if not self.cloud_addr:
+            return False
+        if self.learn:  # relay every login continuously, no one-a-day gate
+            return True
+        return self.capture_date == day and not os.path.exists(self.marker(day))
 
     async def stop(self, reason):
         if self.running:
@@ -93,8 +101,9 @@ class Capture:
 
     async def relay(self, gateway, hello, w_reader, w_writer):
         day = self.today().isoformat()
-        with open(self.marker(day), "w") as fh:
-            fh.write(str(time.time()))
+        if not self.learn:  # learn mode relays repeatedly, so it never burns the day's one shot
+            with open(self.marker(day), "w") as fh:
+                fh.write(str(time.time()))
         self.running, self.next_label = True, None
         self.record = {"id": None, "wid": hello.body["wid"], "recorded_at": time.time(),
                        "state": "open", "login": {}, "frames": {}}
@@ -126,7 +135,10 @@ class Capture:
             self.running = False
             log.warning("capture closed, session %s, %d frames", short(self.record["id"]),
                         len(self.record["frames"]))
-            self._activate()
+            if self.learn:
+                self.on_close(self.record)  # relabel + promote if richer than the active session
+            else:
+                self._activate()
 
     def _activate(self):
         """Make a first capture the active session, but only one the next start can load."""
@@ -196,6 +208,8 @@ class Capture:
             rec["frames"][label] = frame.raw.hex()
             log.info("recorded seq=%s as %s", seq, label)
             self.on_got(label, seq, rec["id"])
+            if isinstance(seq, int):
+                self.on_cmd(seq)  # learn mode: pair this command with the status it causes
         self._save()
         return True
 

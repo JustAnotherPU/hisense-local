@@ -108,6 +108,17 @@ A capture lets one washer login through to the real cloud and records it, with o
 setting. The steps are in the [capture guide](docs/capture-guide.md). A first capture, with no
 session yet, needs `peer_ip`.
 
+### Learn mode
+
+Turn on `learn_mode` and set up the same redirect as for a capture. The add-on passes every login
+through to the cloud, so the phone app keeps working, and records each command you send, naming it
+by the setting it changes. Use the machine as usual for a wash or two; the panel shows how many
+commands it has learned. When enough are known, turn `learn_mode` off and the add-on serves them
+locally.
+
+A command that changes nothing, or several settings at once, is left unnamed instead of guessed.
+Learn mode needs the model profile or a calibration so it can read which setting moved.
+
 ## Calibration
 
 Skip this section on a WF5I1045BWQ with `model` set: its readings are built in. A calibration

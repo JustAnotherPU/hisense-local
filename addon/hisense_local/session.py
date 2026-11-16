@@ -145,14 +145,18 @@ class DataDir:
         finally:
             os.unlink(src)
 
-    def activate_if_none(self, sid):
-        if self.active_id():
-            return False
+    def activate(self, sid):
+        """Point 'active' at sid, replacing any current one (used by learn-mode promotion)."""
         tmp = os.path.join(self.root, ".active")
         with open(tmp, "w") as fh:
             fh.write(sid)
         os.chmod(tmp, 0o600)
         os.replace(tmp, os.path.join(self.root, "active"))
+
+    def activate_if_none(self, sid):
+        if self.active_id():
+            return False
+        self.activate(sid)
         return True
 
     def marker(self, name):

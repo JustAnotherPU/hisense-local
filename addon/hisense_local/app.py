@@ -15,6 +15,7 @@ from .gateway import Gateway, server_context, short
 
 log = logging.getLogger("app")
 PORT = 4444
+INGRESS_PORT = 8129  # the add-on's own port behind Home Assistant Ingress (must match config.yaml)
 
 
 def load_json(path, default):
@@ -126,11 +127,13 @@ async def serve(args, opts, with_mqtt):
     data, session = open_session(args, opts)
 
     capture = None
-    if with_mqtt and opts.get("capture_date"):
-        from .capture import Capture  # loaded only when the owner arms a capture
+    learn_mode = bool(opts.get("learn_mode"))
+    if with_mqtt and (opts.get("capture_date") or learn_mode):
+        from .capture import Capture  # loaded only when the owner arms a capture or learn mode
 
-        capture = Capture(data, opts["capture_date"], opts.get("cloud_addr", ""))
-        log.warning("capture configured for %s (armed: %s)", opts["capture_date"], capture.armed())
+        capture = Capture(data, opts.get("capture_date", ""), opts.get("cloud_addr", ""),
+                          learn=learn_mode)
+        log.warning("capture configured (learn=%s, armed=%s)", learn_mode, capture.armed())
 
     if not opts.get("peer_ip"):
         log.warning("peer_ip is empty: any device that reaches port %d and knows the washer id "
@@ -158,17 +161,52 @@ async def run_async(args, opts):
     gw.on_status, gw.on_link = bridge.on_status, bridge.on_link
     if capture is not None:
         capture.on_got = bridge.capture_got
+    if capture is not None and capture.learn:  # passive learning rides the relay
+        from .learn import Learn
+        learn = Learn(data, offsets)
+        capture.on_cmd, capture.on_close = learn.on_cmd, learn.on_close
+        base_on_status = gw.on_status
+        gw.on_status = lambda values: (base_on_status(values), learn.on_status(values))
+        log.warning("learn mode on: naming commands by effect from %d settable properties",
+                    len(learn.specs))
+    ingress = start_ingress(gw, bridge, capture)
     client.on_connect, client.on_message = bridge.on_connect, bridge.on_message
     client.connect_async(host, port)
     client.loop_start()
     try:
         await (await stop_event()).wait()
     finally:
+        if ingress is not None:
+            ingress.shutdown()
         server.close()
         client.publish(f"{BASE}/alive", "offline", qos=1, retain=True)
         client.disconnect()
         client.loop_stop()
     return 0
+
+
+def start_ingress(gw, bridge, capture):
+    """Start the Ingress panel, or None if it cannot bind. Never fails the add-on."""
+    from . import web
+
+    learn_on = capture is not None and capture.learn
+
+    def status():
+        online = gw.link is not None and gw.ready
+        try:
+            state = bridge.state()
+        except Exception:  # a status read must never take the panel down
+            state = {}
+        return web.build_status(state, online, learn_on)
+
+    def set_mode(want_learn):
+        web.set_own_option("learn_mode", bool(want_learn))
+
+    try:
+        return web.serve_ingress(INGRESS_PORT, status, set_mode)
+    except OSError as exc:
+        log.warning("Ingress panel not started: errno=%s %s", exc.errno, exc.strerror)
+        return None
 
 
 async def calibrate_async(args, opts):
